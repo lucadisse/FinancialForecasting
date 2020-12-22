@@ -13,10 +13,9 @@ if __name__ == "__main__":
     #"MRK
     #"DJIA"
     #"ALV"
-
-    data = DataLoader("NFLX")
-    data.gtrends()
-
+    stock_abrev = "NFLX"
+    data = DataLoader(stock_abrev)
+    #data.gtrends()
     # Visualize data
     #ts_plot(data.hist)
     #volume_vs_price(data)
@@ -25,18 +24,22 @@ if __name__ == "__main__":
     train_test_ratio = 0.8
     input_width = 100
     label_width =100
-    processed = Preprocessor(data.hist, window_length=input_width+label_width)
-    processed.window_scaling()
-    processed.smoothing(alpha=0.7)
 
-    #ts_plot(processed.stock_df, start="2019-11-11")
+    prep = Preprocessor()
+    stock = prep.get_technical_indicators(ts=data.hist)
+    #print(stock.iloc[3:,:])
+    stock = prep.window_scaling(ts=stock, window_length=input_width+label_width)
+    #print(stock.iloc[3:,:])
+    stock = prep.smoothing(ts=stock, alpha=0.8)
+    #print(stock.iloc[3:,:])
+    #ts_plot(stock, start="2019-11-11")
 
     # TODO apply LOESS smoothing the data, but only the training data
     # Define batches, time span per sample and prediction sequence
     w1 = WindowGenerator(input_width=input_width,
                          label_width=label_width,
                          train_test_ratio=train_test_ratio,
-                         ts_set=processed.stock_df,
+                         ts_set=stock,
                          target="Close",
                          overlap=overlap)
 
@@ -44,17 +47,28 @@ if __name__ == "__main__":
         print(f'Inputs shape (batch, time, features): {example_inputs.shape}')
         print(f'Labels shape (batch, time, features): {example_labels.shape}')
 
+
+    #print(stock)
     predict = True
+    train = True
     if predict:
-        w1.make_training_dataset(data.hist)
+        w1.make_training_dataset(stock)
 
         pred = Predictor(w1)
-        pred.compile_and_fit(pred.lstm)
+        if train:
+            #if any(stock.isna()):
+                #raise ValueError("Data contains NaN.")
+            model = pred.compile_and_fit(pred.lstm)
+            model.save_weights('./trained_models/latest/'+stock_abrev)
 
+        else:
+            model = pred.lstm
+            model.load_weights('./trained_models/latest/'+stock_abrev)
+            pred.model = model
         test_prediction = pred.predict()
         #pred.make_money()
-
-        prediction_plot(processed.stock_df, test_prediction, plot_start=w1.train_end_index)
+        #print(test_prediction)
+        prediction_plot(stock, test_prediction, plot_start=w1.train_end_index)
 
     # TODO
     # Define Graph of influences from news ticker between companies. Determine their time series

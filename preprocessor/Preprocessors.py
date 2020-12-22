@@ -5,45 +5,59 @@ from sklearn.preprocessing import StandardScaler
 
 class Preprocessor:
 
-    def __init__(self, ts, window_length):
-        self.stock_df = ts
-        self.window_length = window_length
+    def __init__(self):
+        pass
 
 
     def unscale_ts(self, prediction):
         # TODO impelemnt some kind of unscaling
         b=0
 
-
-    def window_scaling(self):
+    def window_scaling(self, ts, window_length):
         # scale input by window
         scaler = StandardScaler()
-        stock_array = self.stock_df.values
+        stock_array = ts.values
 
-        for ti in range(0, stock_array.shape[0], self.window_length):
-            scaler.fit(stock_array[ti:ti + self.window_length, :])
-            stock_array[ti:ti + self.window_length, :] = scaler.transform(stock_array[ti:ti + self.window_length, :])
+        for ti in range(0, stock_array.shape[0], window_length):
+            scaler.fit(stock_array[ti:ti + window_length, :])
+            stock_array[ti:ti + window_length, :] = scaler.transform(stock_array[ti:ti + window_length, :])
 
-        self.stock_df  = pd.DataFrame(stock_array,
-                                     columns=self.stock_df.columns,
-                                     index=self.stock_df.index)
+        return pd.DataFrame(stock_array, columns=ts.columns, index=ts.index)
 
 
-    def smoothing(self, alpha=0):
+    def smoothing(self, ts, alpha=0):
         prev_value = 0
         # alpha = % of new obervation
-        stock_array = self.stock_df.values
+        stock_array = ts.values
 
         for col in range(stock_array.shape[1]):
             for ti in range(stock_array.shape[0]):
                 stock_array[ti, col] = alpha * stock_array[ti, col] + (1 - alpha) * prev_value
                 prev_value = stock_array[ti, col]
 
-        print(self.stock_df.columns)
-        self.stock_df  = pd.DataFrame(stock_array,
-                                     columns=self.stock_df.columns,
-                                     index=self.stock_df.index)
+        return pd.DataFrame(stock_array, columns=ts.columns, index=ts.index)
 
+
+    def get_technical_indicators(self, ts):
+        # Create 7 and 21 days Moving Average
+        #print(sum(ts['Close'].isna()))
+        #print(ts['Close'])
+        ts['ma7'] = ts['Close'].rolling(window=7, min_periods=1).mean()
+        ts['ma21'] = ts['Close'].rolling(window=21, min_periods=1).mean()
+        # Create MACD
+        ts['26ema'] = ts['Close'].ewm(span=26, min_periods=1).mean()
+        ts['12ema'] = ts['Close'].ewm(span=12, min_periods=1).mean()
+        ts['MACD'] = ts['12ema'] - ts['26ema']
+
+        # Create Bollinger Bands
+        ts['20sd'] = ts['Close'].rolling(window=20, min_periods=1).std()
+        ts['upper_band'] = ts['ma21'] + (ts['20sd'] * 2)
+        ts['lower_band'] = ts['ma21'] - (ts['20sd'] * 2)
+
+        # Create Exponential moving average
+        ts['ema'] = ts['Close'].ewm(com=0.5, min_periods=1).mean()
+        ts = ts.iloc[1:,:]
+        return ts
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, ts_set, train_test_ratio=0.8, target="Close", overlap=0):

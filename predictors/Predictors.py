@@ -10,7 +10,7 @@ class Predictor:
     def __init__(self, window):
         self.window = window
         self.stock_df = window.stock_df
-        self.MAX_EPOCHS = 20
+        self.MAX_EPOCHS = 10
         self.OUT_STEPS = window.label_width
         self.num_features = len(window.stock_df.columns)
         self.train_end_index = window.train_end_index
@@ -20,9 +20,10 @@ class Predictor:
     def lstm(self):
         self.model = tf.keras.Sequential([
             # Shape [batch, time, features] => [batch, lstm_units]
-            tf.keras.layers.LSTM(32, return_sequences=False),
-            #tf.keras.layers.Dropout(0.3),
-            #tf.keras.layers.LSTM(6, return_sequences=False),
+            tf.keras.layers.LSTM(16, return_sequences=False),
+            tf.keras.layers.Dropout(0.3),
+            #tf.keras.layers.LSTM(2, return_sequences=False),
+            tf.keras.layers.Dense(1000, activation='relu'),
             #tf.keras.layers.Dropout(0.3),
             #tf.keras.layers.LSTM(6, return_sequences=False),
             # Shape => [batch, out_steps*features]
